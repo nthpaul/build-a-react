@@ -1,7 +1,15 @@
 let React = {
   createElement: (tag, props, ...children) => {
     if (typeof tag == 'function') {
-      return tag(props);
+      try {
+        return tag(props);
+      } catch ({ promise, key }) {
+        promise.then(data => {
+          promiseCache.set(key, data);
+          rerender();
+        });
+        return { tag: 'div', props: { ...props, children: ['I am loading...'] } };
+      }
     };
     var element = { tag, props: { ...props, children } }
     return element;
@@ -49,7 +57,6 @@ let stateCursor = 0;
 const useState = (initialState) => {
   const FROZEN_CURSOR = stateCursor;
   states[FROZEN_CURSOR] = states[FROZEN_CURSOR] || initialState;
-  console.log(states);
   const setState = (newState) => {
     states[FROZEN_CURSOR] = newState;
     rerender();
@@ -58,20 +65,43 @@ const useState = (initialState) => {
   return [states[FROZEN_CURSOR], setState];
 }
 
+// CONCURRENCY / SUSPENSE
+// this is a simple cache to store promises
+// if the promise is already in the cache, return the value
+// else, throw the promise and key and return a loading state i.e. fallback!
+// once the promise is resolved, store the value in the cache and rerender
+const promiseCache = new Map();
+const createResource = (promise, key) => {
+  if (promiseCache.has(key)) {
+    return promiseCache.get(key);
+  }
+
+  throw { promise, key };
+}
+
 const App = () => {
   const [name, setName] = useState("person");
   const [count, setCount] = useState(0);
 
-  console.log(name, count);
+  const dogPhoto = createResource(fetch('https://dog.ceo/api/breeds/image/random').then(res => res.json()).then(data => data.message), 'dogPhoto');
+
   return (
     <div className="build-a-react">
       <h1>Hello.</h1>
       <p>Let's build a react!</p>
       <input value={name} onchange={e => setName(e.target.value)} type="text" placeholder="name" />
 
-      <h2>The count is: {count.toString()}</h2>
-      <button onclick={() => setCount(count + 1)} value={count}>+</button>
-      <button onclick={() => setCount(count - 1)} value={count}>-</button>
+      <div>
+        <h2>The count is: {count.toString()}</h2>
+        <button onclick={() => setCount(count + 1)} value={count}>+</button>
+        <button onclick={() => setCount(count - 1)} value={count}>-</button>
+      </div>
+
+      <img
+        src={dogPhoto}
+        alt="good boy"
+        style="width: 300px; height: 300px; margin-top: 20px;"
+      />
     </div>
   )
 };
