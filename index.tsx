@@ -51,10 +51,16 @@ const rerender = () => {
 // STATE & HOOKS
 // since a cursor is used to keep track of the states, this is why hooks cannot be used inside loops, conditionals or nested functions
 // this is because the cursor will be incremented and the state will be lost since the order of states will not be constant/unindexable
+// useState takes advantage of closures to persist the state across multiple renders
+// that is, a closure = a function + remembered state
+// a closure function carries its own persistent state by capturing variables
 const states = [];
 let stateCursor = 0;
 
+
 const useState = (initialState) => {
+  // FROZEN_CURSOR is the unique index to access a specific state in the current module's states,
+  // it persists across renders because it is captured in the useState closure
   const FROZEN_CURSOR = stateCursor;
   states[FROZEN_CURSOR] = states[FROZEN_CURSOR] || initialState;
   const setState = (newState) => {
@@ -72,10 +78,7 @@ const useState = (initialState) => {
 // once the promise is resolved, store the value in the cache and rerender
 const promiseCache = new Map();
 const createResource = (promise, key) => {
-  if (promiseCache.has(key)) {
-    return promiseCache.get(key);
-  }
-
+  if (promiseCache.has(key)) return promiseCache.get(key);
   throw { promise, key };
 }
 
